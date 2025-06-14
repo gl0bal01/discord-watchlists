@@ -1,0 +1,13 @@
+# Ignore sensitive configuration files
+src/config/config.php
+
+# Ignore log files
+cve/logs
+europol/logs
+fbi/logs
+
+# Ignore processed data files
+cve/processed_cves.txt
+europol/processed_europol_wanted.txt
+fbi/uids
+ransomware/processed_ransomware_victims.txt
