@@ -1,8 +1,25 @@
 <?php
 /**
- * Europol Watchlist
+ * Europol Most Wanted Notifier
+ * 
+ * Monitors the Europol Most Wanted list for new entries and sends 
+ * notifications to Discord via webhooks when new persons are added.
+ * Downloads daily updated data from OpenSanctions and processes
+ * JSON entities to extract person information.
  *
- * @author gl0bal01
+ * @package     DiscordWatchlists
+ * @subpackage  Europol
+ * @author      gl0bal01
+ * @version     1.0.0
+ * @since       2024-11-15
+ * @license     MIT License
+ * 
+ * @link        https://github.com/gl0bal01/discord-watchlists
+ * @link        https://data.opensanctions.org/datasets/ (Data Source)
+ * 
+ * @requires    PHP 7.4+
+ * @requires    cURL extension
+ * @requires    JSON extension
  */
 
 if (!extension_loaded('curl')) {

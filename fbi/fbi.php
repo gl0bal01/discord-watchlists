@@ -1,14 +1,38 @@
 <?php
 /**
- * FBI Watchlist
+ * FBI Most Wanted Watchlist Notifier
+ * 
+ * Monitors the FBI's Most Wanted API for new entries and sends comprehensive
+ * notifications to Discord via webhooks. Tracks processed UIDs to prevent
+ * duplicate notifications and provides detailed suspect information including
+ * physical descriptions, criminal charges, rewards, locations, and official
+ * FBI documentation links.
  *
- * @author gl0bal01
+ * @package     DiscordWatchlists
+ * @subpackage  FBI
+ * @author      gl0bal01
+ * @version     1.0.0
+ * @since       2024-11-16
+ * @license     MIT License
+ * @copyright   2024 gl0bal01
+ * 
+ * @link        https://github.com/gl0bal01/discord-watchlists
+ * @link        https://api.fbi.gov/@wanted (FBI API Documentation)
+ * @link        https://www.fbi.gov/wanted (FBI Most Wanted Website)
+ * 
+ * @requires    PHP 7.4+
+ * @requires    JSON extension
+ * @requires    DateTime class
+ * @requires    file_get_contents() with URL support
+ * @requires    allow_url_fopen enabled
+ * @requires    stream_context_create() support
  */
 
-if (!extension_loaded('curl')) {
-    die('The cURL extension is not installed or enabled. Please install it to continue.');
+ if (!ini_get('allow_url_fopen')) {
+    die('allow_url_fopen must be enabled in php.ini to access remote URLs.');
 }
-// Discord webhook URL
+
+ // Discord webhook URL
 $config = require __DIR__ . '/../src/config/config.php';
 $webhookUrl = $config['fbi_webhook_url'];
 

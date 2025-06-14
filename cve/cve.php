@@ -1,13 +1,56 @@
 <?php
 /**
- * CVE Watchlist
+ * CVE (Common Vulnerabilities and Exposures) Watchlist Notifier
+ * 
+ * Monitors the Known Exploited Vulnerabilities (KEV) catalog for new CVE entries
+ * and sends real-time notifications to Discord via webhooks. Tracks processed
+ * CVEs to prevent duplicate notifications and provides comprehensive vulnerability
+ * information including CVSS scores, exploitability metrics, GitHub PoCs,
+ * and actionable remediation guidance.
  *
- * @author gl0bal01
+ * @package     DiscordWatchlists
+ * @subpackage  CVE
+ * @author      gl0bal01
+ * @version     1.0.0
+ * @since       2024-10-14
+ * @license     MIT License
+ * 
+ * @link        https://github.com/username/discord-watchlists
+ * @link        https://kevin.gtfkd.com/kev (Enhanced KEV API)
+ * @link        https://www.cisa.gov/known-exploited-vulnerabilities-catalog (Official CISA KEV)
+ * @link        https://nvd.nist.gov/ (National Vulnerability Database)
+ * 
+ * @requires    PHP 7.4+
+ * @requires    cURL extension
+ * @requires    JSON extension
+ * @requires    OpenSSL extension (for HTTPS API calls)
+ * 
+ * @features
+ * - Real-time CVE/KEV catalog monitoring
+ * - Discord webhook notifications with rich embeds
+ * - Duplicate prevention using CVE ID tracking
+ * - Advanced color-coded severity indicators
+ * - CVSS v3.1 metrics integration (NVD data)
+ * - GitHub Proof-of-Concept (PoC) links
+ * - Exploitability scoring and classification
+ * - Required action and due date tracking
+ * - Vendor/project identification
+ * - Attack vector and complexity analysis
+ * 
+ * @color_coding
+ * Notification colors based on exploitability and severity:
+ * - 🟢 **GREEN (High Priority)**: Network-accessible, low complexity, critical severity (CVSS ≥8.0), high exploitability (≥6.9)
+ * - 🟡 **YELLOW (Medium Priority)**: Network-accessible, low complexity, critical severity (CVSS ≥8.0), medium exploitability (3.0-6.8)
+ * - 🔴 **RED (Standard)**: All other vulnerabilities
+ * 
+ * @api_endpoints
+ * - GET https://kevin.gtfkd.com/kev - Enhanced KEV catalog with NVD data and GitHub PoCs
  */
 
 if (!extension_loaded('curl')) {
     die('The cURL extension is not installed or enabled. Please install it to continue.');
 }
+
 class DiscordVulnerabilityNotifier {
     private $webhookUrl;
     private $checksumFile;
@@ -48,7 +91,7 @@ class DiscordVulnerabilityNotifier {
 
         curl_close($ch);
         $data = json_decode($response, true);
-        error_log('API Response: ' . json_encode($data)); // Debug log
+        //error_log('API Response: ' . json_encode($data));  Debug log
         return $data;
     }
 
@@ -67,7 +110,7 @@ class DiscordVulnerabilityNotifier {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if (curl_errno($ch) || $httpCode != 200) {
+        if (curl_errno($ch) || ($httpCode != 200 && $httpCode != 204)) {
             error_log('Webhook send error: ' . curl_error($ch) . ' HTTP Code: ' . $httpCode);
             error_log('Response: ' . $response);
         }
@@ -76,7 +119,7 @@ class DiscordVulnerabilityNotifier {
     }
 
 private function createEmbedFromVulnerability($vulnerability) {
-    error_log('Vulnerability data: ' . json_encode($vulnerability));
+    //error_log('Vulnerability data: ' . json_encode($vulnerability));
 
     $fields = [
         ['name' => 'CVE ID', 'value' => $vulnerability['cveID'] ?? 'N/A', 'inline' => true],
@@ -168,6 +211,7 @@ private function createEmbedFromVulnerability($vulnerability) {
             // Send webhook with single embed
             $this->sendDiscordWebhook([$embed]);
 
+            sleep(1);
             // Mark as processed
             $this->addProcessedCve($cveId);
         }
@@ -177,8 +221,6 @@ private function createEmbedFromVulnerability($vulnerability) {
 // Configuration
 $config = require __DIR__ . '/../src/config/config.php';
 $webhookUrl = $config['cve_webhook_url'];
-
-error_log('Webhook URL: ' . $webhookUrl); // Debug log
 
 $jsonUrl = 'https://kevin.gtfkd.com/kev';
 $checksumFile = __DIR__ . '/processed_cves.txt';

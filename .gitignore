@@ -11,3 +11,4 @@ cve/processed_cves.txt
 europol/processed_europol_wanted.txt
 fbi/uids
 ransomware/processed_ransomware_victims.txt
+ransomware/recentvictims.json

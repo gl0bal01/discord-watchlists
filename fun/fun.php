@@ -1,10 +1,42 @@
+
 <?php
 /**
- * Fun
+ * Daily Fun & Wisdom Bot
+ * 
+ * Sends a daily compilation of jokes, facts, and inspirational quotes
+ * to Discord via webhook. Aggregates content from multiple public APIs
+ * to provide entertainment and motivation for your Discord community.
  *
- * @author gl0bal01
+ * @package     DiscordWatchlists
+ * @subpackage  Fun
+ * @author      gl0bal01
+ * @version     1.0.0
+ * @since       2024-06-14
+ * @license     MIT License
+ * 
+ * @link        https://github.com/gl0bal01/discord-watchlists
+ * 
+ * @requires    PHP 7.4+
+ * @requires    cURL extension
+ * @requires    JSON extension
+ * 
+ * @features
+ * - Chuck Norris facts
+ * - Random useless facts
+ * - Jokes (filtered for appropriate content)
+ * - Dad jokes
+ * - Buddha quotes
+ * - Zen quotes
+ * - Single Discord message with all content
+ * 
+ * @api_sources
+ * - api.chucknorris.io - Chuck Norris facts
+ * - uselessfacts.jsph.pl - Random facts
+ * - v2.jokeapi.dev - Jokes (blacklist racist content)
+ * - icanhazdadjoke.com - Dad jokes
+ * - buddha-api.com - Buddha quotes
+ * - zenquotes.io - Inspirational quotes
  */
-
 if (!extension_loaded('curl')) {
     die('The cURL extension is not installed or enabled. Please install it to continue.');
 }
