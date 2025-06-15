@@ -2,27 +2,27 @@
 
 This project is a collection of PHP scripts that monitor various sources for new information and send notifications to a Discord channel via a webhook.
 
-## CVE Watchlist
+## [CVE Watchlist](/cve)
 Monitors a CVE feed for new vulnerabilities and sends a notification to a Discord channel.
   
 ![CVE Watchlist](/assets/cve.png)
 
-## Europol Watchlist
+## [Europol Watchlist](/europol)
 Monitors the Europol's Most Wanted list for new additions and sends a notification to a Discord channel.
 
 ![Europole Watchlist](/assets/europole.png)
 
-## FBI Watchlist
+## [FBI Watchlist](/fbi)
 Monitors the FBI's Most Wanted list for new additions and sends a notification to a Discord channel.
 
 ![FBI Watchlist](/assets/fbi.png)
 
-## Ransomware Watchlist
+## [Ransomware Watchlist](/ransomware)
 Monitors a ransomware feed for new victims and sends a notification to a Discord channel.
 
 ![Ransomware Watchlist](/assets/Ransome.png)
 
-## Daily Fun
+## [Daily Fun](/fun)
 Sends a daily message with a random joke, fact, or quote to a Discord channel.
 
 ![Fun](/assets/fun.png)
