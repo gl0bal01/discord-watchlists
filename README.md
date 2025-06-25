@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/1002155255.svg)](https://doi.org/10.5281/zenodo.15722652)
+
 # Discord Watchlists
 
 This project is a collection of PHP scripts that monitor various sources for new information and send notifications to a Discord channel via a webhook.
