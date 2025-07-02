@@ -2,6 +2,7 @@ name: Update DOI and Citation
 on:
   release:
     types: [published]
+  workflow_dispatch: {}
 
 permissions:
   contents: write   # needed so the GITHUB_TOKEN can push
