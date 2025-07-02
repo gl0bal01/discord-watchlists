@@ -2,34 +2,60 @@ name: Update DOI and Citation
 on:
   release:
     types: [published]
-  workflow_dispatch: {}
+  workflow_dispatch: {}    # optional: lets you run it manually
 
 permissions:
-  contents: write   # needed so the GITHUB_TOKEN can push
+  contents: write
 
 jobs:
   update-citation:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main branch
+      # 1️⃣ Checkout main (not the tag!)
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: main
           fetch-depth: 0
 
+      # 2️⃣ Give Zenodo time to process your release
       - name: Wait for Zenodo processing
         run: sleep 300
 
+      # 3️⃣ Pull the DOI out of the release notes/body
+      - name: Extract DOI
+        id: extract_doi
+        run: |
+          # Look for something like "10.5281/zenodo.1234567" in the body
+          DOI=$(grep -Eo '10\.[0-9]+\/[^\s)]+' <<< "${{ github.event.release.body }}" | head -n1)
+          if [ -z "$DOI" ]; then
+            echo "🚨 Could not find DOI in release body!"
+            exit 1
+          fi
+          echo "doi=$DOI" >> $GITHUB_OUTPUT
+
+      # 4️⃣ Update CITATION.cff in place
       - name: Update CITATION.cff
         run: |
-          sed -i "s/^version:.*/version: ${{ github.event.release.tag_name }}/" CITATION.cff
-          sed -i "s|^date-released:.*|date-released: $(date +%Y-%m-%d)|" CITATION.cff
+          TAG=${{ github.event.release.tag_name }}
+          TODAY=$(date +%F)
+          sed -i "s/^version:.*/version: $TAG/" CITATION.cff
+          sed -i "s|^date-released:.*|date-released: $TODAY|" CITATION.cff
 
-      - name: Commit & push changes
+          # If a doi: line already exists, replace it; otherwise append it
+          if grep -q '^doi:' CITATION.cff; then
+            sed -i "s|^doi:.*|doi: ${{ steps.extract_doi.outputs.doi }}|" CITATION.cff
+          else
+            # after date-released, insert doi:
+            sed -i "/^date-released:/a doi: ${{ steps.extract_doi.outputs.doi }}" CITATION.cff
+          fi
+
+      # 5️⃣ Commit & push back to main
+      - name: Commit & Push
         run: |
           git config user.name  "GitHub Action"
           git config user.email "action@github.com"
           git add CITATION.cff
-          git commit -m "Update citation info for ${{ github.event.release.tag_name }}" || echo "No changes to commit"
+          git commit -m "chore: bump citation for $TAG" || echo "No changes to commit"
           git push origin main
