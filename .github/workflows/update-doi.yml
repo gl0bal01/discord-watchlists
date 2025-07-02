@@ -2,7 +2,7 @@ name: Update DOI and Citation
 on:
   release:
     types: [published]
-  workflow_dispatch: {}    # optional: lets you run it manually
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -11,7 +11,6 @@ jobs:
   update-citation:
     runs-on: ubuntu-latest
     steps:
-      # 1️⃣ Checkout main (not the tag!)
       - name: Checkout main
         uses: actions/checkout@v4
         with:
@@ -19,43 +18,53 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      # 2️⃣ Give Zenodo time to process your release
       - name: Wait for Zenodo processing
         run: sleep 300
 
-      # 3️⃣ Pull the DOI out of the release notes/body
-      - name: Extract DOI
+      - name: Ensure jq is installed
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Extract Zenodo DOI from release comments
         id: extract_doi
         run: |
-          # Look for something like "10.5281/zenodo.1234567" in the body
-          DOI=$(grep -Eo '10\.[0-9]+\/[^\s)]+' <<< "${{ github.event.release.body }}" | head -n1)
+          echo "→ Fetching comments from ${{ github.event.release.comments_url }}"
+          COMMENTS=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "${{ github.event.release.comments_url }}")
+
+          # Pull the first DOI-like string out of any comment body
+          DOI=$(echo "$COMMENTS" \
+            | jq -r '.[].body' \
+            | grep -Eo '10\.[0-9]+\/zenodo\.[0-9]+' \
+            | head -n1)
+
           if [ -z "$DOI" ]; then
-            echo "🚨 Could not find DOI in release body!"
+            echo "::error::Could not find Zenodo DOI in release comments!"
             exit 1
           fi
+
+          echo "Found DOI: $DOI"
           echo "doi=$DOI" >> $GITHUB_OUTPUT
 
-      # 4️⃣ Update CITATION.cff in place
       - name: Update CITATION.cff
         run: |
           TAG=${{ github.event.release.tag_name }}
           TODAY=$(date +%F)
+
           sed -i "s/^version:.*/version: $TAG/" CITATION.cff
           sed -i "s|^date-released:.*|date-released: $TODAY|" CITATION.cff
 
-          # If a doi: line already exists, replace it; otherwise append it
           if grep -q '^doi:' CITATION.cff; then
             sed -i "s|^doi:.*|doi: ${{ steps.extract_doi.outputs.doi }}|" CITATION.cff
           else
-            # after date-released, insert doi:
             sed -i "/^date-released:/a doi: ${{ steps.extract_doi.outputs.doi }}" CITATION.cff
           fi
 
-      # 5️⃣ Commit & push back to main
-      - name: Commit & Push
+      - name: Commit & push
         run: |
           git config user.name  "GitHub Action"
           git config user.email "action@github.com"
           git add CITATION.cff
-          git commit -m "chore: bump citation for $TAG" || echo "No changes to commit"
+          git commit -m "chore: bump citation for $TAG" || echo "No changes"
           git push origin main
