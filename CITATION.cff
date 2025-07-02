@@ -18,7 +18,7 @@ authors:
 repository-code: "https://github.com/gl0bal01/discord-watchlists"
 url: "https://github.com/gl0bal01/discord-watchlists"
 license: "MIT"
-version: "1.0.0"
-date-released: "2025-06-23"
+version: 
+date-released: 2025-07-02
 commit: "main"
 doi: "10.5281/zenodo.15722653"
