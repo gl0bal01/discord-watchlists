@@ -2,16 +2,20 @@ name: Update DOI and Citation
 on:
   release:
     types: [published]
+
 permissions:
-  contents: write
+  contents: write   # needed so the GITHUB_TOKEN can push
+
 jobs:
   update-citation:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          fetch-depth: 0
 
       - name: Wait for Zenodo processing
         run: sleep 300
@@ -19,17 +23,12 @@ jobs:
       - name: Update CITATION.cff
         run: |
           sed -i "s/^version:.*/version: ${{ github.event.release.tag_name }}/" CITATION.cff
-          sed -i "s/^date-released:.*/date-released: $(date +%Y-%m-%d)/" CITATION.cff
+          sed -i "s|^date-released:.*|date-released: $(date +%Y-%m-%d)|" CITATION.cff
 
-      - name: Checkout branch
+      - name: Commit & push changes
         run: |
-          git fetch origin main
-          git checkout main
-
-      - name: Commit changes
-        run: |
-          git config --local user.name "GitHub Action"
-          git config --local user.email "action@github.com"
+          git config user.name  "GitHub Action"
+          git config user.email "action@github.com"
           git add CITATION.cff
-          git commit -m "Update citation info for ${{ github.event.release.tag_name }}" || exit 0
-          git push
+          git commit -m "Update citation info for ${{ github.event.release.tag_name }}" || echo "No changes to commit"
+          git push origin main
