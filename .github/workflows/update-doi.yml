@@ -1,9 +1,9 @@
 name: Update DOI and Citation
+
 on:
   release:
     types: [published]
   workflow_dispatch: {}
-
 permissions:
   contents: write
 
@@ -11,60 +11,106 @@ jobs:
   update-citation:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout main
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: main
-          fetch-depth: 0
 
       - name: Wait for Zenodo processing
         run: sleep 300
 
-      - name: Ensure jq is installed
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Extract Zenodo DOI from release comments
-        id: extract_doi
+      - name: Get Zenodo DOI
+        id: zenodo-doi
         run: |
-          echo "→ Fetching comments from ${{ github.event.release.comments_url }}"
-          COMMENTS=$(curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "${{ github.event.release.comments_url }}")
-
-          # Pull the first DOI-like string out of any comment body
-          DOI=$(echo "$COMMENTS" \
-            | jq -r '.[].body' \
-            | grep -Eo '10\.[0-9]+\/zenodo\.[0-9]+' \
-            | head -n1)
-
+          # Replace YOUR_ZENODO_CONCEPT_ID with your actual Zenodo concept ID
+          # Find this in your Zenodo record's "Cite all versions" section
+          # Example: if Concept DOI is 10.5281/zenodo.1234567, use 1234567
+          CONCEPT_ID="YOUR_ZENODO_CONCEPT_ID"
+          
+          # Get the latest version DOI from Zenodo API
+          RESPONSE=$(curl -s "https://zenodo.org/api/records?q=conceptrecid:$CONCEPT_ID&sort=mostrecent")
+          DOI=$(echo $RESPONSE | jq -r '.hits.hits[0].pids.doi.identifier // empty')
+          
           if [ -z "$DOI" ]; then
-            echo "::error::Could not find Zenodo DOI in release comments!"
+            echo "Failed to get DOI from Zenodo"
             exit 1
           fi
-
-          echo "Found DOI: $DOI"
+          
           echo "doi=$DOI" >> $GITHUB_OUTPUT
+          echo "Found DOI: $DOI"
 
       - name: Update CITATION.cff
         run: |
-          TAG=${{ github.event.release.tag_name }}
-          TODAY=$(date +%F)
-
-          sed -i "s/^version:.*/version: $TAG/" CITATION.cff
-          sed -i "s|^date-released:.*|date-released: $TODAY|" CITATION.cff
-
-          if grep -q '^doi:' CITATION.cff; then
-            sed -i "s|^doi:.*|doi: ${{ steps.extract_doi.outputs.doi }}|" CITATION.cff
-          else
-            sed -i "/^date-released:/a doi: ${{ steps.extract_doi.outputs.doi }}" CITATION.cff
+          # Update version
+          sed -i "s/^version:.*/version: ${{ github.event.release.tag_name }}/" CITATION.cff
+          
+          # Update date
+          sed -i "s/^date-released:.*/date-released: $(date +%Y-%m-%d)/" CITATION.cff
+          
+          # Update DOI
+          sed -i "s|^doi:.*|doi: ${{ steps.zenodo-doi.outputs.doi }}|" CITATION.cff
+          
+          # If there's a preferred-citation section, update it too
+          if grep -q "preferred-citation:" CITATION.cff; then
+            sed -i "/preferred-citation:/,/^[^ ]/ { s/^  doi:.*/  doi: ${{ steps.zenodo-doi.outputs.doi }}/; s/^  version:.*/  version: ${{ github.event.release.tag_name }}/; s/^  date-released:.*/  date-released: $(date +%Y-%m-%d)/; }" CITATION.cff
           fi
 
-      - name: Commit & push
+      - name: Update README.md DOI badges
         run: |
-          git config user.name  "GitHub Action"
-          git config user.email "action@github.com"
-          git add CITATION.cff
-          git commit -m "chore: bump citation for $TAG" || echo "No changes"
-          git push origin main
+          DOI="${{ steps.zenodo-doi.outputs.doi }}"
+          
+          # Update Zenodo DOI badge (common formats)
+          sed -i "s|https://zenodo.org/badge/DOI/[^)]*|https://zenodo.org/badge/DOI/$DOI|g" README.md
+          sed -i "s|https://doi.org/[0-9.]*/zenodo\.[0-9]*|https://doi.org/$DOI|g" README.md
+          
+          # Update any other DOI references in README
+          sed -i "s|10\.5281/zenodo\.[0-9]*|${DOI#https://doi.org/}|g" README.md
+
+      - name: Update package files (if they exist)
+        run: |
+          # Update package.json if it exists
+          if [ -f "package.json" ]; then
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${{ github.event.release.tag_name }}\"/" package.json
+          fi
+          
+          # Update pyproject.toml if it exists
+          if [ -f "pyproject.toml" ]; then
+            sed -i "s/version = \"[^\"]*\"/version = \"${{ github.event.release.tag_name }}\"/" pyproject.toml
+          fi
+          
+          # Update setup.py if it exists
+          if [ -f "setup.py" ]; then
+            sed -i "s/version=['\"][^'\"]*['\"]/version='${{ github.event.release.tag_name }}'/" setup.py
+          fi
+
+      - name: Verify changes
+        run: |
+          echo "=== CITATION.cff changes ==="
+          git diff CITATION.cff || echo "No changes to CITATION.cff"
+          
+          echo "=== README.md changes ==="
+          git diff README.md || echo "No changes to README.md"
+          
+          echo "=== Other changes ==="
+          git diff --name-only | grep -v "CITATION.cff\|README.md" || echo "No other changes"
+
+      - name: Commit changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Add all changed files
+          git add CITATION.cff README.md package.json pyproject.toml setup.py 2>/dev/null || true
+          
+          # Only commit if there are changes
+          if ! git diff --cached --quiet; then
+            git commit -m "Update DOI and version info for ${{ github.event.release.tag_name }}
+
+            - Updated CITATION.cff with new version, date, and DOI
+            - Updated README.md DOI badges
+            - Updated package version files
+            - DOI: ${{ steps.zenodo-doi.outputs.doi }}"
+            git push
+          else
+            echo "No changes to commit"
+          fi
