@@ -25,7 +25,7 @@ jobs:
           # Replace YOUR_ZENODO_CONCEPT_ID with your actual Zenodo concept ID
           # Find this in your Zenodo record's "Cite all versions" section
           # Example: if Concept DOI is 10.5281/zenodo.1234567, use 1234567
-          CONCEPT_ID="YOUR_ZENODO_CONCEPT_ID"
+          CONCEPT_ID="15722652"
           
           # Get the latest version DOI from Zenodo API
           RESPONSE=$(curl -s "https://zenodo.org/api/records?q=conceptrecid:$CONCEPT_ID&sort=mostrecent")
