@@ -4,6 +4,7 @@ on:
   release:
     types: [published]
   workflow_dispatch: {}
+
 permissions:
   contents: write
 
@@ -29,10 +30,30 @@ jobs:
           
           # Get the latest version DOI from Zenodo API
           RESPONSE=$(curl -s "https://zenodo.org/api/records?q=conceptrecid:$CONCEPT_ID&sort=mostrecent")
-          DOI=$(echo $RESPONSE | jq -r '.hits.hits[0].pids.doi.identifier // empty')
           
-          if [ -z "$DOI" ]; then
-            echo "Failed to get DOI from Zenodo"
+          # Debug: show the response structure
+          echo "API Response structure:"
+          echo $RESPONSE | jq '.hits.hits[0] | {doi: .doi, metadata: .metadata.doi, conceptdoi: .conceptdoi}' || echo "Failed to parse response"
+          
+          # Extract DOI from the correct path in the response
+          DOI=$(echo $RESPONSE | jq -r '.hits.hits[0].doi // empty')
+          
+          # If the main DOI field is empty, try the metadata DOI
+          if [ -z "$DOI" ] || [ "$DOI" = "null" ]; then
+            DOI=$(echo $RESPONSE | jq -r '.hits.hits[0].metadata.doi // empty')
+          fi
+          
+          # If still empty, construct from the conceptdoi and record ID
+          if [ -z "$DOI" ] || [ "$DOI" = "null" ]; then
+            RECORD_ID=$(echo $RESPONSE | jq -r '.hits.hits[0].id // empty')
+            if [ -n "$RECORD_ID" ]; then
+              DOI="10.5281/zenodo.$RECORD_ID"
+            fi
+          fi
+          
+          if [ -z "$DOI" ] || [ "$DOI" = "null" ]; then
+            echo "Failed to get DOI from Zenodo API response"
+            echo "Response: $RESPONSE"
             exit 1
           fi
           
